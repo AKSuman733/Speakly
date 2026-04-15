@@ -4,38 +4,79 @@ import axios from "axios";
 function App() {
   const [input, setInput] = useState("");
   const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSpeak = (text) => {
+    const speech = new SpeechSynthesisUtterance(text);
+    speech.lang = "en-US";
+    speechSynthesis.speak(speech);
+  };
+  
+  const startListening = () => {
+  const recognition = new window.webkitSpeechRecognition();
+
+  recognition.lang = "en-US";
+  recognition.start();
+
+  recognition.onresult = async (event) => {
+    setLoading(true);
+    const speechText = event.results[0][0].transcript;
+
+    console.log("User said:", speechText);
+    setInput(speechText);
+
+    // send to backend
     const res = await axios.post("http://localhost:5000/correct", {
-      sentence: input,
+      sentence: speechText,
     });
 
-    setResult(res.data);
+    const fullResponse = `
+      Correct sentence: ${res.data.corrected}.
+      Explanation: ${res.data.explanation}.
+      My Response: ${res.data.myResponce}.
+      Follow: ${res.data.followUpQuestion}.
+    `;
+    setResult(fullResponse);
+    setLoading(false);
+    handleSpeak(fullResponse);
+    
   };
-
+};
   return (
     <div style={{ padding: "40px" }}>
       <h1>AI English Tutor</h1>
 
-      <textarea
-        rows="4"
-        cols="50"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Type your sentence..."
-      />
+      
+      <button onClick={startListening}>🎤 Speak</button>
+      <div style={{ marginTop: "20px" }}>
+      {loading && <p>AI is thinking...</p>}
+  {input && (
+    <div style={{ textAlign: "right", marginBottom: "15px" }}>
+      <span style={{
+        background: "#DCF8C6",
+        padding: "10px",
+        borderRadius: "10px"
+      }}>
+        {input}
+      </span>
+    </div>
+  )}
 
-      <br /><br />
+  
+  <div style={{ display: "flex", gap: "10px" }}>
+  {result && (
+    <span style={{
+      background: "#EEE",
+      padding: "10px",
+      borderRadius: "10px"
+    }}>
+      {result}
+    </span>
+  )}
+</div>
 
-      <button onClick={handleSubmit}>Check</button>
-
-      {result && (
-        <div style={{ marginTop: "20px" }}>
-          <p><b>Corrected:</b> {result.corrected}</p>
-          <p><b>Explanation:</b> {result.explanation}</p>
-          <p><b>Better:</b> {result.better}</p>
-        </div>
-      )}
+      </div>
+      
     </div>
   );
 }
